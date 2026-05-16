@@ -1,7 +1,7 @@
 from typing import Optional
 from sqlmodel import SQLModel, Field, Relationship
 from sqlalchemy import Column, BigInteger, ForeignKey, Text
-from app.models.base import TimestampMixin, SoftDeleteMixin
+from app.core.base_model import TimestampMixin, SoftDeleteMixin
 
 
 class Categoria(TimestampMixin, SoftDeleteMixin, SQLModel, table=True):

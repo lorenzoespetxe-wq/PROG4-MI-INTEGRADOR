@@ -1,6 +1,6 @@
 from sqlmodel import SQLModel, Field, Relationship
 from sqlalchemy import Column, BigInteger, ForeignKey, String, DECIMAL
-from app.models.base import TimestampMixin
+from app.core.base_model import TimestampMixin
 
 
 class Pago(TimestampMixin, SQLModel, table=True):
