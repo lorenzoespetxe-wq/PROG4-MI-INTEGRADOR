@@ -10,7 +10,7 @@ class Categoria(TimestampMixin, SoftDeleteMixin, SQLModel, table=True):
     id: int | None = Field(
         default=None, sa_column=Column(BigInteger, primary_key=True, autoincrement=True)
     )
-    nombre: str = Field(max_length=150, unique=True, nullable=False)
+    nombre: str = Field(max_length=100, unique=True, nullable=False)
     descripcion: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
     parent_id: int | None = Field(
         default=None,

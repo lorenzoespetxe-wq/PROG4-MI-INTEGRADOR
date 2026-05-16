@@ -1,7 +1,9 @@
+from typing import Optional
 from sqlmodel import SQLModel, Field, Relationship
 from sqlalchemy import (
     Column,
     BigInteger,
+    ForeignKey,
     Text,
     DECIMAL,
     Integer,
@@ -22,7 +24,7 @@ class Producto(TimestampMixin, SoftDeleteMixin, SQLModel, table=True):
     id: int | None = Field(
         default=None, sa_column=Column(BigInteger, primary_key=True, autoincrement=True)
     )
-    nombre: str = Field(max_length=200, nullable=False)
+    nombre: str = Field(max_length=150, unique=True, nullable=False)
     descripcion: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
     precio_base: float = Field(sa_column=Column(DECIMAL(10, 2), nullable=False))
     imagenes_url: list[str] | None = Field(
@@ -34,8 +36,17 @@ class Producto(TimestampMixin, SoftDeleteMixin, SQLModel, table=True):
     disponible: bool = Field(
         default=True, sa_column=Column(Boolean, nullable=False, server_default="true")
     )
+    unidad_venta_id: int | None = Field(
+        default=None,
+        sa_column=Column(
+            BigInteger,
+            ForeignKey("unidad_medida.id", ondelete="SET NULL"),
+            nullable=True,
+        ),
+    )
 
-    # Relaciones (forward references para tablas pivot y detalles que crearemos luego)
+    # Relaciones
+    unidad_venta: Optional["UnidadMedida"] = Relationship(back_populates="productos")
     producto_categorias: list["ProductoCategoria"] = Relationship(
         back_populates="producto"
     )
