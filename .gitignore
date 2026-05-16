@@ -1,0 +1,29 @@
+# Byte-compiled / optimized / DLL support
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Environments
+.venv/
+venv/
+ENV/
+env/
+
+# Configuration and secrets
+.env
+
+# IDEs and editors
+.vscode/
+    
+# Except launch.json or settings.json if shared in team (optional)
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

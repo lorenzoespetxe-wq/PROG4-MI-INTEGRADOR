@@ -1,0 +1,12 @@
+fastapi[standard]>=0.111.0
+sqlmodel>=0.0.19
+psycopg2-binary
+alembic>=1.13.0
+passlib
+bcrypt==4.0.1
+python-jose[cryptography]
+mercadopago>=2.3.0
+slowapi>=0.1.9
+python-dotenv
+httpx
+pydantic-settings
