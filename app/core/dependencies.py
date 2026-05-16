@@ -35,9 +35,8 @@ def get_current_user(
 
     user_id = int(payload.get("sub"))
 
-    # Importación local diferida para evitar errores circulares y
-    # dependencias prematuras de la Fase 2
-    from app.models.usuario import Usuario
+    # Importación local diferida para evitar imports circulares
+    from app.modules.usuarios.model import Usuario
 
     user = session.get(Usuario, user_id)
     if not user:
