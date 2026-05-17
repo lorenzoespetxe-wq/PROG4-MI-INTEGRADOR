@@ -82,8 +82,11 @@ class AuthService:
             if not usuario or not verify_password(data.password, usuario.password_hash):
                 raise http_error(401, "Credenciales inválidas", INVALID_CREDENTIALS)
 
-            if not usuario.activo:
-                raise http_error(403, "Usuario inactivo", FORBIDDEN)
+            # FIX: verificar tanto `activo` como `deleted_at` para bloquear
+            # usuarios con baja lógica aunque `activo` no haya sido seteado a
+            # False por un estado inconsistente previo en la base de datos.
+            if not usuario.activo or usuario.deleted_at is not None:
+                raise http_error(401, "Credenciales inválidas", INVALID_CREDENTIALS)
 
             roles = [ur.rol_codigo for ur in usuario.usuarios_roles]
 

@@ -1,0 +1,133 @@
+@base = http://localhost:8000/api/v1
+
+# PRUEBA: Endpoint de registro.
+###
+POST {{base}}/auth/register
+Content-Type: application/json
+
+{
+  "nombre": "Laura",
+  "apellido": "Gómez",
+  "email": "laura@test.com",
+  "password": "Test1234",
+  "celular": "2614001122"
+}
+
+# PRUEBA: Verificar que el sistema rechace el registro de un nuevo usuario utilizando un email que ya se encuentra registrado, retornando un código de estado 409 (Conflict).
+###
+POST {{base}}/auth/register
+Content-Type: application/json
+
+{
+  "nombre": "Otro",
+  "apellido": "Usuario",
+  "email": "laura@test.com",
+  "password": "Test1234"
+}
+
+# PRUEBA: Verificar la validación de contraseñas. El sistema debe rechazar el registro si la contraseña no contiene al menos una letra mayúscula, retornando un error 422 (Unprocessable Entity) generado por Pydantic.
+###
+POST {{base}}/auth/register
+Content-Type: application/json
+
+{
+  "nombre": "Test",
+  "apellido": "Test",
+  "email": "otro@test.com",
+  "password": "sinmayuscula1"
+}
+
+# PRUEBA: Verificar que un usuario cliente existente pueda iniciar sesión correctamente, devolviendo un token de acceso (JWT) y un token de actualización.
+###
+POST {{base}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "laura@test.com",
+  "password": "Test1234"
+}
+
+# PRUEBA: Verificar que el usuario administrador por defecto (creado mediante el seed) pueda iniciar sesión correctamente y obtener sus tokens de acceso y actualización.
+###
+POST {{base}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@foodstore.com",
+  "password": "Admin1234!"
+}
+
+# PRUEBA: Verificar que el sistema deniegue el acceso cuando se proveen credenciales incorrectas (contraseña errónea), retornando un error 401 (Unauthorized).
+###
+POST {{base}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "laura@test.com",
+  "password": "wrongpass"
+}
+
+# PRUEBA: Verificar que un usuario autenticado pueda acceder a su propio perfil utilizando el token de acceso (JWT) proporcionado en el header Authorization, y que los datos devueltos coincidan con los de su registro.
+###
+GET {{base}}/auth/me
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIzIiwiZW1haWwiOiJsYXVyYUB0ZXN0LmNvbSIsInJvbGVzIjpbIkNMSUVOVCJdLCJleHAiOjE3NzkwNDM4NjJ9.5TVt02AbkNB32qzZtqbKsYsC3HyTW2nnjQVC_3wQsh8
+
+# PRUEBA: Verificar que el endpoint protegido deniegue el acceso si no se provee un token de autorización en la cabecera, retornando un error 401 (Unauthorized).
+###
+GET {{base}}/auth/me
+
+# PRUEBA: Verificar que el sistema permita obtener un nuevo par de tokens (acceso y actualización) utilizando un refresh token válido, aplicando el mecanismo de rotación.
+###
+POST {{base}}/auth/refresh
+Content-Type: application/json
+
+{
+  "refresh_token": "81ddb733-a753-47db-a1e8-a6df6447eef5"
+}
+
+# PRUEBA: Verificar la correcta invalidación de tokens rotados. El sistema debe rechazar un refresh token que ya fue utilizado en el paso anterior para obtener un nuevo par de tokens, previniendo ataques de re-uso de tokens y retornando un error 401 (Unauthorized).
+###
+POST {{base}}/auth/refresh
+Content-Type: application/json
+
+{
+  "refresh_token": "066b1792-8892-4b91-8dfd-9cff2186846b"
+}
+
+# PRUEBA: Verificar que el sistema permita cerrar sesión correctamente invalidando el token de actualización provisto, retornando un código 204 (No Content).
+###
+POST {{base}}/auth/logout
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIzIiwiZW1haWwiOiJsYXVyYUB0ZXN0LmNvbSIsInJvbGVzIjpbIkNMSUVOVCJdLCJleHAiOjE3NzkwNDQ1NTB9.BSfgJwIeGraOO3s_cLwUx-0fSKsqVU2x8d_tlVjjVG8
+Content-Type: application/json
+
+{
+  "refresh_token": "d138622e-6376-4368-ae60-7bb5c52995ab"
+}
+
+# PRUEBA: Verificar que tras el logout exitoso, el token de actualización haya sido completamente invalidado en la base de datos. Un intento de usarlo para obtener nuevos tokens debe ser denegado con un error 401 (Unauthorized).
+###
+POST {{base}}/auth/refresh
+Content-Type: application/json
+
+{
+  "refresh_token": "d138622e-6376-4368-ae60-7bb5c52995ab"
+}
+
+# PRUEBA: Restaurar el estado de autenticación obteniendo tokens frescos tanto para el cliente como para el administrador, necesarios para continuar con las siguientes fases tras el logout.
+###
+POST {{base}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "laura@test.com",
+  "password": "Test1234"
+}
+
+###
+POST {{base}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@foodstore.com",
+  "password": "Admin1234!"
+}

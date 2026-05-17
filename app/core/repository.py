@@ -38,6 +38,11 @@ class BaseRepository(Generic[T]):
     def soft_delete(self, db_obj: T) -> T:
         if hasattr(db_obj, "deleted_at"):
             setattr(db_obj, "deleted_at", datetime.now(timezone.utc))
+            # FIX: marcar como inactivo al hacer baja lógica para que el
+            # login (y cualquier otro guard que evalúe `activo`) lo rechace
+            # correctamente, incluso si la query no filtra por deleted_at.
+            if hasattr(db_obj, "activo"):
+                setattr(db_obj, "activo", False)
             self.session.add(db_obj)
             self.session.flush()
         return db_obj

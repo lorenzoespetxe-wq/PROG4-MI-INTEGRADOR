@@ -1,0 +1,159 @@
+@base = http://localhost:8000/api/v1
+
+# PRUEBA: Obtener token de acceso de administrador para inicializar las variables locales de este archivo.
+POST {{base}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@foodstore.com",
+  "password": "Admin1234!"
+}
+
+###
+# PRUEBA: Obtener token de acceso de cliente para inicializar las variables locales de este archivo.
+POST {{base}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "laura@test.com",
+  "password": "Test1234"
+}
+
+###
+# VARIABLES DE FASE (Completa con los resultados de los logins
+# de arriba)
+@admin_token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwiZW1haWwiOiJhZG1pbkBmb29kc3RvcmUuY29tIiwicm9sZXMiOlsiQURNSU4iXSwiZXhwIjoxNzc5MDQ3NzgzfQ.-4U54hBEWjmO9_TGI7lTu4KaCeG0z3xGWGyUWjH_lp8
+@client_token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIzIiwiZW1haWwiOiJsYXVyYUB0ZXN0LmNvbSIsInJvbGVzIjpbIkNMSUVOVCJdLCJleHAiOjE3NzkwNDc4MDZ9.NBhOYKk2QGuYznrmcxbS4oVpWxO_3zrl0DGXbpG0jY8
+@client_id = 3
+
+# PRUEBA: Verificar que un usuario con rol de administrador pueda obtener la lista paginada de todos los usuarios registrados en el sistema utilizando su token de acceso.
+###
+GET {{base}}/usuarios?page=1&size=10
+Authorization: Bearer {{admin_token}}
+
+# PRUEBA: Verificar que el sistema deniegue el acceso a la 
+# lista global de usuarios si el solicitante posee únicamente 
+# el rol CLIENT, retornando un error 403 (Forbidden) por falta 
+# de privilegios.
+###
+GET {{base}}/usuarios
+Authorization: Bearer {{client_token}}
+
+# PRUEBA: Verificar que un usuario con rol CLIENT pueda acceder
+# al detalle de su propia cuenta utilizando su ID de usuario.
+###
+GET {{base}}/usuarios/3
+Authorization: Bearer {{client_token}}
+
+# PRUEBA: Verificar que el sistema impida a un usuario 
+# con rol CLIENT ver el perfil de otro usuario (en este
+# caso el admin con id=1), retornando un error 403 (Forbidden).
+###
+GET {{base}}/usuarios/1
+Authorization: Bearer {{client_token}}
+
+# PRUEBA: Verificar que un usuario con rol CLIENT pueda
+# actualizar sus propios datos permitidos (ej. número 
+# de celular) y que los cambios se reflejen en la base 
+# de datos.
+###
+PATCH {{base}}/usuarios/3
+Authorization: Bearer {{client_token}}
+Content-Type: application/json
+
+{
+  "celular": "2614999888"
+}
+
+# PRUEBA: Registrar un nuevo usuario en el sistema que 
+# será utilizado en los pasos posteriores para validar 
+# la correcta asignación, duplicación y revocación de 
+# roles por parte del administrador.
+###
+POST {{base}}/auth/register
+Content-Type: application/json
+
+{
+  "nombre": "Marcos",
+  "apellido": "Torres",
+  "email": "marcos@test.com",
+  "password": "Test1234"
+}
+
+# PRUEBA: Verificar que un administrador pueda asignar 
+# un nuevo rol a un usuario existente, ampliando sus 
+# permisos en el sistema.
+###
+POST {{base}}/usuarios/4/roles
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "rol_codigo": "PEDIDOS"
+}
+
+# PRUEBA: Verificar que el sistema impida asignar un rol
+# que el usuario ya posee, manejando la restricción de
+# unicidad y retornando un error 409 (Conflict).
+###
+POST {{base}}/usuarios/4/roles
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwiZW1haWwiOiJhZG1pbkBmb29kc3RvcmUuY29tIiwicm9sZXMiOlsiQURNSU4iXSwiZXhwIjoxNzc5MDQ1NTA2fQ.bDiEGz9o_QJABpclTrkSmhf95ULmoX_LqYOQ0_NcsRQ
+Content-Type: application/json
+
+{
+  "rol_codigo": "PEDIDOS"
+}
+
+# PRUEBA: Verificar que un administrador pueda revocar 
+# (eliminar) un rol específico a un usuario.
+# Marcos debería quedar únicamente con el rol PEDIDOS.
+###
+DELETE {{base}}/usuarios/4/roles/CLIENT
+Authorization: Bearer {{admin_token}}
+
+# PRUEBA: Verificar que un administrador pueda eliminar
+# (o desactivar lógicamente) a un usuario del sistema.
+###
+DELETE {{base}}/usuarios/4
+Authorization: Bearer {{admin_token}}
+
+# PRUEBA: Verificar que el sistema bloquee el acceso y 
+# no emita tokens para un usuario que ha sido desactivado 
+# (borrado lógico) en el paso anterior.
+###
+POST {{base}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "marcos@test.com",
+  "password": "Test1234"
+}
+
+# PRUEBA: Verificar que un usuario con rol ADMIN 
+# tenga los privilegios necesarios para consultar
+# el detalle de cualquier usuario individual en el
+# sistema (en este caso, el perfil de Laura).
+###
+GET {{base}}/usuarios/3
+Authorization: Bearer {{admin_token}}
+
+# PRUEBA: Verificar que el sistema valide correctamente
+# los códigos de rol y rechace la asignación de un 
+# rol que no existe en el catálogo del sistema, 
+# retornando un error 400 (Bad Request) o 404 (Not Found).
+###
+POST {{base}}/usuarios/3/roles
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "rol_codigo": "ROL_INVENTADO_QUE_NO_EXISTE"
+}
+
+# PRUEBA: Validar el control de errores al intentar
+# remover un rol que el usuario no tiene asignado
+# (en este caso, intentar sacarle el rol ADMIN a
+# Laura, quien solo es CLIENT).
+###
+DELETE {{base}}/usuarios/3/roles/ADMIN
+Authorization: Bearer {{admin_token}}
