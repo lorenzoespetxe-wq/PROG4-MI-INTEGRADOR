@@ -1,7 +1,5 @@
 # app/modules/auth/router.py
 from fastapi import APIRouter, Depends, Request, status
-from slowapi import Limiter
-from slowapi.util import get_remote_address
 
 from app.core.unit_of_work import UnitOfWork
 from app.core.dependencies import get_uow, get_current_user, UserInToken
@@ -13,9 +11,9 @@ from app.modules.auth.schemas import (
     UserResponse,
 )
 from app.modules.auth.service import AuthService
+from app.core.limiter import limiter
 
 router = APIRouter()
-limiter = Limiter(key_func=get_remote_address)
 
 
 @router.post(
@@ -32,7 +30,7 @@ def register(
 
 
 @router.post("/login", response_model=TokenResponse, status_code=status.HTTP_200_OK)
-@limiter.limit("5/minute")
+@limiter.limit("5/15minutes")
 def login(
     request: Request,
     data: LoginRequest,
