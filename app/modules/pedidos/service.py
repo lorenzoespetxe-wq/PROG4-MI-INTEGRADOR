@@ -18,7 +18,7 @@ from app.modules.pedidos.schemas import (
     PedidoDetail,
     PaginatedPedidos,
 )
-from app.modules.pedidos.repositories import (
+from app.modules.pedidos.repository import (
     PedidoRepository,
     DetallePedidoRepository,
     HistorialRepository,

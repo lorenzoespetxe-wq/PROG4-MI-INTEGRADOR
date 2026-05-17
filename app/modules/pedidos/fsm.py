@@ -16,7 +16,12 @@ TERMINALES: set[str] = {"ENTREGADO", "CANCELADO"}
 
 # Estados donde el stock ya fue descontado; si se cancela desde uno de estos
 # hay que restaurar el stock
-ESTADOS_CON_STOCK_DESCONTADO: set[str] = {"CONFIRMADO", "EN_PREP", "EN_CAMINO"}
+ESTADOS_CON_STOCK_DESCONTADO: set[str] = {
+    "PENDIENTE",
+    "CONFIRMADO",
+    "EN_PREP",
+    "EN_CAMINO",
+}
 
 
 def validar_transicion(estado_actual: str, nuevo_estado: str) -> None:

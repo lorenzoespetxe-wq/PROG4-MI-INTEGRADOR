@@ -4,6 +4,7 @@ Wrapper liviano sobre el SDK de MercadoPago.
 No depende de la BD ni del UnitOfWork.
 Se instancia una única vez al importar el módulo.
 """
+
 import mercadopago
 
 from app.core.config import settings
@@ -32,7 +33,6 @@ def crear_pago(
         "token": token,
         "description": description,
         "installments": cuotas,
-        "payment_method_id": "visa",          # MP lo infiere del token; se puede omitir
         "external_reference": external_reference,
         "notification_url": settings.MP_NOTIFICATION_URL,
     }
@@ -47,7 +47,9 @@ def crear_pago(
     body = response.get("response", {})
 
     if http_status not in (200, 201):
-        detalle = body.get("message") or body.get("error") or "Error al procesar el pago"
+        detalle = (
+            body.get("message") or body.get("error") or "Error al procesar el pago"
+        )
         raise http_error(402, detalle, PAYMENT_ERROR)
 
     return body
@@ -66,7 +68,9 @@ def obtener_pago(mp_payment_id: int) -> dict:
     body = response.get("response", {})
 
     if http_status not in (200, 201):
-        detalle = body.get("message") or body.get("error") or "Error al consultar el pago"
+        detalle = (
+            body.get("message") or body.get("error") or "Error al consultar el pago"
+        )
         raise http_error(402, detalle, PAYMENT_ERROR)
 
     return body
