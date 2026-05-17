@@ -50,7 +50,7 @@ def get_producto(
 @router.post("", response_model=ProductoRead, status_code=status.HTTP_201_CREATED)
 def crear_producto(
     data: ProductoCreate,
-    current_user: UserInToken = Depends(require_role("ADMIN")),
+    current_user: UserInToken = Depends(require_role("ADMIN", "STOCK")),
     uow: UnitOfWork = Depends(get_uow),
 ):
     service = ProductoService(uow)
@@ -61,7 +61,7 @@ def crear_producto(
 def actualizar_producto(
     id: int,
     data: ProductoUpdate,
-    current_user: UserInToken = Depends(require_role("ADMIN")),
+    current_user: UserInToken = Depends(require_role("ADMIN", "STOCK")),
     uow: UnitOfWork = Depends(get_uow),
 ):
     service = ProductoService(uow)

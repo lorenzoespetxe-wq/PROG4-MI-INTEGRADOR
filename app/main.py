@@ -2,11 +2,11 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
+from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
 from app.core.config import settings
+from app.core.limiter import limiter
 
 from app.modules.auth.router import router as auth_router
 from app.modules.usuarios.router import router as usuarios_router
@@ -18,8 +18,6 @@ from app.modules.productos.router import router as productos_router
 from app.modules.pedidos.router import router as pedidos_router
 from app.modules.pagos.router import router as pagos_router
 from app.modules.admin.router import router as admin_router
-
-limiter = Limiter(key_func=get_remote_address)
 
 
 @asynccontextmanager

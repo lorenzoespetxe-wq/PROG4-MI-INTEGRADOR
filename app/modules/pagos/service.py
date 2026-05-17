@@ -7,9 +7,7 @@ from app.modules.pagos.model import Pago
 from app.modules.pagos.schemas import CrearPagoRequest, PagoRead
 from app.modules.pagos.repository import PagoRepository
 from app.modules.pagos import mp_client
-from app.modules.pedidos.model import Pedido
-from app.modules.pedidos.schemas import AvanzarEstadoRequest
-from app.modules.pedidos.service import PedidoService
+from app.modules.pedidos.model import Pedido, HistorialEstadoPedido
 
 
 class PagoService:
@@ -38,6 +36,28 @@ class PagoService:
             raise http_error(404, "Pedido no encontrado", NOT_FOUND)
         return pedido
 
+    def _confirmar_pedido(self, pedido_id: int, usuario_id: int) -> None:
+        """
+        Avanza el pedido a CONFIRMADO directamente, sin abrir un UoW nuevo.
+        Solo se llama desde dentro de un bloque with self.uow: ya activo.
+        """
+        pedido = self._get_pedido(pedido_id)
+        if pedido.estado_codigo != "PENDIENTE":
+            return  # ya fue avanzado por otra vía, no hacer nada
+
+        pedido.estado_codigo = "CONFIRMADO"
+        self.uow.session.add(pedido)
+        self.uow.session.add(
+            HistorialEstadoPedido(
+                pedido_id=pedido_id,
+                estado_desde="PENDIENTE",
+                estado_hasta="CONFIRMADO",
+                usuario_id=usuario_id,
+                motivo="Pago aprobado automáticamente",
+            )
+        )
+        self.uow.session.flush()
+
     # ──────────────────────────────────────────────────────────────────────
     # Operaciones públicas
     # ──────────────────────────────────────────────────────────────────────
@@ -47,10 +67,10 @@ class PagoService:
         Flujo:
           1. Validaciones de negocio (pedido existe, pertenece al usuario,
              está en PENDIENTE, no tiene pago aprobado previo).
-          2. Llamada al SDK de MP  — FUERA del UoW.
-          3. Persist Pago + avance a CONFIRMADO si approved  — DENTRO del UoW.
+          2. Llamada al SDK de MP — FUERA del UoW.
+          3. Persist Pago + avance a CONFIRMADO si approved — DENTRO del UoW.
         """
-        # ── Fase 1: validaciones previas (sin UoW abierto aún) ──────────
+        # ── Fase 1: validaciones previas ────────────────────────────────
         with self.uow:
             repo = PagoRepository(self.uow.session)
 
@@ -81,7 +101,6 @@ class PagoService:
             description = f"Food Store — Pedido #{pedido.id}"
 
         # ── Fase 2: llamada al SDK (FUERA del UoW) ──────────────────────
-        # Si el SDK falla lanza http_error 402 directamente desde mp_client.
         resultado_mp = mp_client.crear_pago(
             token=data.token_tarjeta,
             monto=monto,
@@ -96,7 +115,7 @@ class PagoService:
         mp_payment_id = resultado_mp.get("id")
         payment_method_id = resultado_mp.get("payment_method_id")
 
-        # ── Fase 3: persistencia dentro de un nuevo UoW ─────────────────
+        # ── Fase 3: persistencia (DENTRO de un nuevo UoW) ───────────────
         with self.uow:
             repo = PagoRepository(self.uow.session)
 
@@ -114,16 +133,9 @@ class PagoService:
             self.uow.session.flush()
             self.uow.session.refresh(nuevo_pago)
 
-            # Si el pago fue aprobado, avanzar el pedido a CONFIRMADO
-            # dentro de la misma transacción.
+            # Avanzar el pedido a CONFIRMADO directamente, sin anidar otro UoW
             if mp_status == "approved":
-                pedido_service = PedidoService(self.uow)
-                pedido_service.avanzar_estado(
-                    usuario_id=usuario_id,
-                    pedido_id=data.pedido_id,
-                    data=AvanzarEstadoRequest(nuevo_estado="CONFIRMADO"),
-                    roles=["ADMIN"],  # el sistema actúa con privilegio interno
-                )
+                self._confirmar_pedido(data.pedido_id, usuario_id)
 
             return self._map_to_read(nuevo_pago)
 
@@ -140,7 +152,6 @@ class PagoService:
         try:
             resultado_mp = mp_client.obtener_pago(mp_payment_id)
         except Exception:
-            # Si el SDK falla, respondemos 200 de todas formas (regla del plan)
             return
 
         nuevo_status = resultado_mp.get("status", "pending")
@@ -153,27 +164,19 @@ class PagoService:
 
                 pago = repo.get_by_mp_payment_id(mp_payment_id)
                 if not pago:
-                    return  # Pago desconocido — retornamos silenciosamente
+                    return
 
                 pago.mp_status = nuevo_status
                 pago.mp_status_detail = nuevo_status_detail
                 self.uow.session.add(pago)
                 self.uow.session.flush()
 
-                # Avanzar pedido a CONFIRMADO si el pago fue aprobado
-                # y el pedido todavía está en PENDIENTE
+                # Avanzar pedido a CONFIRMADO directamente, sin anidar otro UoW
                 if nuevo_status == "approved":
                     pedido = self._get_pedido(pago.pedido_id)
                     if pedido.estado_codigo == "PENDIENTE":
-                        pedido_service = PedidoService(self.uow)
-                        pedido_service.avanzar_estado(
-                            usuario_id=pedido.usuario_id,
-                            pedido_id=pago.pedido_id,
-                            data=AvanzarEstadoRequest(nuevo_estado="CONFIRMADO"),
-                            roles=["ADMIN"],
-                        )
+                        self._confirmar_pedido(pago.pedido_id, pedido.usuario_id)
         except Exception:
-            # El webhook nunca debe retornar 5xx — absorbe cualquier error interno
             return
 
     def get_pago_por_pedido(
@@ -186,7 +189,6 @@ class PagoService:
             if not pago:
                 raise http_error(404, "Pago no encontrado para este pedido", NOT_FOUND)
 
-            # CLIENT solo puede ver pagos de sus propios pedidos
             es_admin = any(r in roles for r in ("ADMIN", "PEDIDOS"))
             if not es_admin:
                 pedido = self._get_pedido(pedido_id)

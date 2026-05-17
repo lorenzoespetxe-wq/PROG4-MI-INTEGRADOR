@@ -45,7 +45,7 @@ def crear_pedido(
     current_user: UserInToken = Depends(get_current_user),
     uow: UnitOfWork = Depends(get_uow),
 ):
-    """Crea un pedido. Requiere rol CLIENT (cualquier usuario autenticado puede crear)."""
+    """Crea un pedido. Requiere autenticación."""
     service = PedidoService(uow)
     return service.crear_pedido(usuario_id=current_user.id, data=data)
 
@@ -82,10 +82,32 @@ def avanzar_estado(
 ):
     """
     Avanza el estado de un pedido.
-    - CLIENT: solo puede cancelar sus propios pedidos en estado PENDIENTE.
+    - CLIENT: solo puede cancelar sus propios pedidos en estado PENDIENTE o CONFIRMADO.
     - ADMIN / PEDIDOS: pueden aplicar cualquier transición válida.
     """
     service = PedidoService(uow)
+    return service.avanzar_estado(
+        usuario_id=current_user.id,
+        pedido_id=id,
+        data=data,
+        roles=current_user.roles,
+    )
+
+
+@router.delete("/{id}", response_model=PedidoDetail, status_code=status.HTTP_200_OK)
+def cancelar_pedido(
+    id: int,
+    motivo: str = Query(..., min_length=1, description="Motivo de la cancelación"),
+    current_user: UserInToken = Depends(get_current_user),
+    uow: UnitOfWork = Depends(get_uow),
+):
+    """
+    Cancela el propio pedido (spec §5.3).
+    Solo permitido desde PENDIENTE o CONFIRMADO.
+    Delega a avanzar_estado con nuevo_estado='CANCELADO'.
+    """
+    service = PedidoService(uow)
+    data = AvanzarEstadoRequest(nuevo_estado="CANCELADO", motivo=motivo)
     return service.avanzar_estado(
         usuario_id=current_user.id,
         pedido_id=id,

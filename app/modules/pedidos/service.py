@@ -309,7 +309,6 @@ class PedidoService:
             es_cliente = "CLIENT" in roles
 
             if not es_admin_o_pedidos:
-                # CLIENT solo puede cancelar sus propios pedidos en PENDIENTE
                 if not es_cliente:
                     raise http_error(403, "Permisos insuficientes", FORBIDDEN)
                 if pedido.usuario_id != usuario_id:
@@ -320,10 +319,11 @@ class PedidoService:
                         "Los clientes solo pueden cancelar sus pedidos",
                         FORBIDDEN,
                     )
-                if pedido.estado_codigo != "PENDIENTE":
+                # Spec §5.3: clientes pueden cancelar desde PENDIENTE o CONFIRMADO
+                if pedido.estado_codigo not in ("PENDIENTE", "CONFIRMADO"):
                     raise http_error(
                         403,
-                        "Solo se pueden cancelar pedidos en estado PENDIENTE",
+                        "Solo se pueden cancelar pedidos en estado PENDIENTE o CONFIRMADO",
                         FORBIDDEN,
                     )
 
@@ -371,7 +371,6 @@ class PedidoService:
             repo = PedidoRepository(self.uow.session)
             historial_repo = HistorialRepository(self.uow.session)
 
-            # Valida visibilidad antes de devolver el historial
             self._get_pedido_visible(repo, pedido_id, usuario_id, roles)
 
             entradas = historial_repo.list_por_pedido_asc(pedido_id)
