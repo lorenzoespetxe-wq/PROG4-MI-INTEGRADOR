@@ -26,8 +26,11 @@ class Usuario(TimestampMixin, SoftDeleteMixin, SQLModel, table=True):
     password_hash: str = Field(sa_column=Column(CHAR(60), nullable=False))
     activo: bool = Field(default=True, nullable=False)
 
-    # Relaciones (forward references mantenidas como strings)
-    usuarios_roles: list["UsuarioRol"] = Relationship(back_populates="usuario")
+    # Relaciones - join explícito para evitar ambigüedad con asignado_por_id
+    usuarios_roles: list["UsuarioRol"] = Relationship(
+        back_populates="usuario",
+        sa_relationship_kwargs={"primaryjoin": "Usuario.id == UsuarioRol.usuario_id"},
+    )
     refresh_tokens: list["RefreshToken"] = Relationship(back_populates="usuario")
     direcciones: list["DireccionEntrega"] = Relationship(back_populates="usuario")
     pedidos: list["Pedido"] = Relationship(back_populates="usuario")
@@ -56,8 +59,8 @@ class UsuarioRol(SQLModel, table=True):
         ),
     )
 
-    # Relación explícita indicando la FK correcta para evitar ambigüedad con asignado_por_id
+    # Relación explícita
     usuario: "Usuario" = Relationship(
         back_populates="usuarios_roles",
-        sa_relationship_kwargs={"foreign_keys": "[UsuarioRol.usuario_id]"},
+        sa_relationship_kwargs={"primaryjoin": "Usuario.id == UsuarioRol.usuario_id"},
     )
